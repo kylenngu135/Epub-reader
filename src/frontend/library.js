@@ -28,6 +28,7 @@ const totalPagesEl   = document.getElementById("totalPages");
 // ── Reader state ─────────────────────────────────────────────────────────────
 let chapters     = [];   // [{ title, html }]
 let currentIndex = 0;
+let hrefMap = {};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -151,7 +152,9 @@ async function openBook(book) {
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
 
     const arrayBuffer = await res.arrayBuffer();
-    chapters = await parseEpub(arrayBuffer);
+    const { chapters: parsed, hrefMap: map } = await parseEpub(arrayBuffer);
+    chapters = parsed;
+    hrefMap = map;
 
     if (chapters.length === 0) throw new Error("No readable content found in epub.");
 
@@ -169,7 +172,8 @@ async function openBook(book) {
 
 /**
  * Parse an epub ArrayBuffer using JSZip.
- * Returns an array of { title, html } objects ordered by spine.
+ * Returns an array of { title, html } objects ordered by spine,
+ * and a hrefMap of { filename → chapterIndex } for TOC navigation.
  */
 async function parseEpub(arrayBuffer) {
   const zip     = await JSZip.loadAsync(arrayBuffer);
@@ -209,24 +213,32 @@ async function parseEpub(arrayBuffer) {
   }
 
   // Merge inserts into the preceding page.
-  // A page is considered a "main" page if it has a meaningful title
-  // (h1/h2 with real text) or is the first page.
   const results = [];
   for (let i = 0; i < pages.length; i++) {
     const page = pages[i];
     if (isMainPage(page, i)) {
-      results.push({ title: page.title || `Section ${results.length + 1}`, html: page.html });
+      results.push({ title: page.title || `Section ${results.length + 1}`, html: page.html, href: page.href });
     } else if (results.length > 0) {
-      // Append to the previous page
       results[results.length - 1].html += page.html;
     } else {
-      // No preceding page yet, treat as its own
-      results.push({ title: page.title || `Section ${results.length + 1}`, html: page.html });
+      results.push({ title: page.title || `Section ${results.length + 1}`, html: page.html, href: page.href });
     }
   }
 
-  return results;
+  // Build href → chapter index map for TOC link interception.
+  // Keyed by bare filename (without path or fragment) for flexible matching.
+  const hrefMap = {};
+  results.forEach((chapter, index) => {
+    if (!chapter.href) return;
+    const bare = chapter.href.split("/").pop().split("#")[0];
+    hrefMap[bare] = index;
+    hrefMap[chapter.href] = index; // also store full relative path
+  });
+
+  return { chapters: results, hrefMap };
 }
+
+
 
 function isMainPage(page, index) {
   // First page always stands alone
@@ -310,29 +322,48 @@ function extractChapterTitle(html) {
 
 // ── Reader: rendering & navigation ───────────────────────────────────────────
 
+/**
+ * Render a chapter by index, intercepting any internal TOC links
+ * so they jump to the correct chapter instead of navigating away.
+ */
 function renderChapter(index) {
   currentIndex = index;
   readerContent.innerHTML = chapters[index].html;
 
-  // Scroll to top of content
+  // Intercept all anchor clicks — reroute internal epub links to chapters
+  readerContent.querySelectorAll("a[href]").forEach((a) => {
+    a.addEventListener("click", (e) => {
+      const href = a.getAttribute("href");
+
+      // Ignore external links
+      if (href.startsWith("http://") || href.startsWith("https://")) return;
+
+      e.preventDefault();
+
+      // Strip fragment and path, match against hrefMap
+      const bare     = href.split("/").pop().split("#")[0];
+      const target   = hrefMap[bare] ?? hrefMap[href];
+
+      if (target !== undefined) {
+        renderChapter(target);
+      }
+    });
+  });
+
   readerContent.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  // Update nav buttons
   prevBtn.disabled = index === 0;
   nextBtn.disabled = index === chapters.length - 1;
 
-  // Update progress label
   currentPageEl.textContent = index + 1;
   totalPagesEl.textContent  = chapters.length;
 
-  // Update dot highlights
   document.querySelectorAll(".chapter-dot").forEach((dot, i) => {
     dot.classList.toggle("active", i === index);
   });
 
-  // Retrigger page-turn animation
   readerContent.style.animation = "none";
-  void readerContent.offsetWidth; // reflow
+  void readerContent.offsetWidth;
   readerContent.style.animation  = "";
 }
 
