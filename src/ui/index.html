@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Shelf</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Courier+Prime:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="library.css" />
+</head>
+<body>
+
+  <!-- ░░ LIBRARY VIEW ░░ -->
+  <div id="libraryView" class="view active">
+    <header>
+      <div class="header-rule"></div>
+      <h1>The&nbsp;Shelf</h1>
+      <p class="subtitle">Your personal epub collection</p>
+      <div class="header-rule"></div>
+    </header>
+
+    <main>
+
+      <!-- ░░ UPLOAD ZONE ░░ -->
+      <div id="uploadZone" class="upload-zone" role="button" tabindex="0" aria-label="Drop an epub file here or click to browse">
+        <input type="file" id="fileUpload" accept=".epub" class="upload-input" />
+        <div class="upload-inner">
+          <span class="upload-icon">＋</span>
+          <p class="upload-label">Drop an <em>.epub</em> here or <span class="upload-browse">browse</span></p>
+          <p id="uploadFileName" class="upload-filename"></p>
+        </div>
+      </div>
+      <div class="upload-actions">
+        <button id="uploadButton" class="upload-btn" disabled>Add to Shelf</button>
+        <span id="uploadStatus" class="upload-status"></span>
+      </div>
+
+      <div id="bookGrid" class="book-grid">
+        <!-- cards injected by library.js -->
+      </div>
+      <div id="emptyState" class="empty-state hidden">
+        <span class="empty-icon">📚</span>
+        <p>No books on the shelf yet.</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- ░░ READER VIEW ░░ -->
+  <div id="readerView" class="view">
+    <div class="reader-chrome">
+      <button id="backBtn" class="back-btn">← Back to shelf</button>
+      <span id="readerTitle" class="reader-title"></span>
+      <div class="reader-progress">
+        <span id="progressLabel">Page <span id="currentPage">1</span> of <span id="totalPages">1</span></span>
+      </div>
+    </div>
+
+    <div id="readerContent" class="reader-content">
+      <!-- chapter text injected here -->
+    </div>
+
+    <nav class="reader-nav">
+      <button id="prevBtn" class="nav-btn" disabled>‹ Prev</button>
+      <div id="chapterList" class="chapter-dots"></div>
+      <button id="nextBtn" class="nav-btn">Next ›</button>
+    </nav>
+  </div>
+
+  <!-- ░░ LOADING OVERLAY ░░ -->
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <p>Opening book…</p>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script type="module" src="../frontend/main.js"></script>
+</body>
+</html>
